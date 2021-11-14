@@ -173,7 +173,7 @@ def main():
     while 1:
         img.update()
         cv2.imshow("img",img.img)
-        #time.sleep(1)
+        time.sleep(0.05)
         cv2.waitKey(1)
 
 
