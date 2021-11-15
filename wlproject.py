@@ -29,6 +29,7 @@ class map:
         self.cars = []
         self.block_size = 100
         self.img = 0
+
     def point_show(self,point,size,color):
         for i in range(size//2):
             for j in range(size//2):
@@ -172,10 +173,6 @@ class map:
         self.create_base(img_size)
         with open("a.pickle" , "wb") as f:
             pickle.dump(self.img,f)
-
-        
-                            
-        
 
 def main():
     img = map()
