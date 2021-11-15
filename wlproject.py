@@ -182,7 +182,10 @@ def main():
         img.update()
         cv2.imshow("img",img.img)
         time.sleep(0.005)
-        cv2.waitKey(1)
+        terminate = cv2.waitKey(1)
+        if (terminate != -1):
+            break
+
 
 
 if __name__ == "__main__":
