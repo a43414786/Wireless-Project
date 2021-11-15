@@ -21,11 +21,13 @@ class map:
         self.time = time.time()
         self.base_size = 9
         self.car_size = 7
+        self.car_add_rate = 10
+        self.base_add_rate = 0.12
         self.base_color = [255,0,200] 
         self.car_color = [255,200,0] 
         self.bases = []
         self.cars = []
-        self.block_size = 50
+        self.block_size = 60
         self.img = 0
 
     def point_show(self,point,size,color):
@@ -112,7 +114,7 @@ class map:
                 self.change_dir(i)
                 
     def addcar(self):
-        if  np.random.randint(0,12) == 0:
+        if  np.random.randint(0,int(60/self.car_add_rate)) == 0:
             i = np.random.randint(0,10)
             direct = [0,0]
             hv = 0
@@ -143,7 +145,7 @@ class map:
             for j in range(10,img_size[1]-10):
                 if ((i-10) % (self.block_size/2) == 0) and ((i-10) % self.block_size != 0):
                     if ((j-10) % (self.block_size/2) == 0) and ((j-10) % self.block_size != 0):
-                        if np.random.randint(0,10) == 0:
+                        if np.random.randint(0,int(1/self.base_add_rate)) == 0:
                             pos = np.random.randint(0,4)
                             if pos == 0:
                                 self.point_show((i+10,j),self.base_size,self.base_color)
@@ -175,12 +177,11 @@ class map:
 def main():
     img = map()
     img.makemap()
-    
     cv2.namedWindow("img")
     while 1:
         img.update()
         cv2.imshow("img",img.img)
-        time.sleep(0.001)
+        time.sleep(0.005)
         cv2.waitKey(1)
 
 
