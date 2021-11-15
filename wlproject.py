@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import time
 import pickle
-from numpy import random
 
 class car:
     def __init__(self,position,dir,hv):
@@ -17,17 +16,16 @@ class base:
     def __init__(self,position):
         self.point = position
 
-
 class map:
     def __init__(self):
         self.time = time.time()
-        self.base_size = 11
+        self.base_size = 9
         self.car_size = 7
         self.base_color = [255,0,200] 
         self.car_color = [255,200,0] 
         self.bases = []
         self.cars = []
-        self.block_size = 100
+        self.block_size = 50
         self.img = 0
 
     def point_show(self,point,size,color):
@@ -106,7 +104,7 @@ class map:
             
             i.update_position()
             
-            if (i.point[0] < 10) or (i.point[0] > 910) or (i.point[1] < 10) or (i.point[1] > 910):
+            if (i.point[0] < 10) or (i.point[0] > self.block_size*9+10) or (i.point[1] < 10) or (i.point[1] > self.block_size*9+10):
                 self.cars.pop(index)
                 continue
 
