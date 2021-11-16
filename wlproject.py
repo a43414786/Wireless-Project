@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import time
 import pickle
-
+import math
 class car:
     def __init__(self,position,dir,hv):
         self.point = position
@@ -13,8 +13,25 @@ class car:
         self.point[1] = self.point[1] + self.direct[1]
 
 class base:
-    def __init__(self,position):
+    def __init__(self,position,block_size,freq):
         self.point = position
+        self.signal_map = self.makesignalmap(block_size,freq)
+    def get_signal(self,position):
+        return self.signal_map[position[0]][position[1]]
+    def makesignalmap(self,block_size,freq):
+        img_size = (block_size*9+21,block_size*9+21)
+        signal_map = np.zeros(img_size)
+        for i in range(10,img_size[0]-10):
+            for j in range(10,img_size[1]-10):
+                if (i-10) % block_size == 0:
+                    signal_map[i][j] = 32.45 + 20*math.log10(freq) + 20*math.log10(self.distance((i,j))/100)
+                if (j-10) % block_size == 0:
+                    signal_map[i][j] = 32.45 + 20*math.log10(freq) + 20*math.log10(self.distance((i,j))/100)
+        return signal_map
+    def distance(self,position):
+        return ((self.point[0] - position[0])**2 + (self.point[1] - position[1])**2)**0.5
+
+        
 
 class map:
     def __init__(self):
@@ -27,7 +44,7 @@ class map:
         self.car_color = [255,200,0] 
         self.bases = []
         self.cars = []
-        self.block_size = 60
+        self.block_size = 100
         self.img = 0
 
     def point_show(self,point,size,color):
@@ -149,16 +166,16 @@ class map:
                             pos = np.random.randint(0,4)
                             if pos == 0:
                                 self.point_show((i+10,j),self.base_size,self.base_color)
-                                self.bases.append(base((i+10,j)))
+                                self.bases.append(base((i+10,j),self.block_size,100))
                             elif pos == 1:
                                 self.point_show((i-10,j),self.base_size,self.base_color)
-                                self.bases.append(base((i-10,j)))
+                                self.bases.append(base((i-10,j),self.block_size,100))
                             elif pos == 2:
                                 self.point_show((i,j+10),self.base_size,self.base_color)
-                                self.bases.append(base((i,j+10)))
+                                self.bases.append(base((i,j+10),self.block_size,100))
                             else:
                                 self.point_show((i,j-10),self.base_size,self.base_color)
-                                self.bases.append(base((i,j-10)))
+                                self.bases.append(base((i,j-10),self.block_size,100))
 
     def makemap(self):
         img_size = (self.block_size*9+21,self.block_size*9+21,3)
@@ -182,11 +199,12 @@ def main():
         img.update()
         cv2.imshow("img",img.img)
         time.sleep(0.005)
-        terminate = cv2.waitKey(1)
-        if (terminate != -1):
+        dead = cv2.waitKey(1)
+        if dead != -1:
             break
-
-
-
+    print(img.bases[0].get_signal((10,10)))
+    print(img.bases[0].get_signal((410,10)))
+    print(img.bases[0].get_signal((910,10)))
+    print(img.bases[0].point)
 if __name__ == "__main__":
     main()
