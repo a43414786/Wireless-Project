@@ -103,6 +103,10 @@ class map:
         self.block_size = 100
         self.img = 0
         self.counter = 0
+        self.best = 0
+        self.threshold = 0
+        self.entropy = 0
+        self.my = 0
     def point_show(self,point,size,color):
         for i in range(size//2):
             for j in range(size//2):
@@ -268,16 +272,12 @@ def main():
     while 1:
         img.update()
         cv2.imshow("img",img.img)
-        ui.updatalabel(counter,counter,counter,counter,counter,len(img.cars),img.counter)
+        ui.updatalabel(counter,img.best,img.threshold,img.entropy,img.my,len(img.cars),img.counter)
         time.sleep(0.005)
         dead = cv2.waitKey(1)
         counter += 1
         if dead != -1:
             break
-    print(img.bases[0].get_signal((10,10)))
-    print(img.bases[0].get_signal((410,10)))
-    print(img.bases[0].get_signal((910,10)))
-    print(img.bases[0].point)
 if __name__ == "__main__":
     main()
 
