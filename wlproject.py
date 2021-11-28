@@ -1,13 +1,68 @@
+import sys
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QPushButton
+from PyQt5.QtGui import QFont, QIcon
+from PyQt5.QtCore import pyqtSlot, right
 import cv2
 import numpy as np
 import time
 import pickle
 import math
+
+class UI:
+    
+    def __init__(self):
+        self.setUI()
+
+    def label(self,name,position):
+        label = QLabel(self.widget)
+        label.setText(name)
+        label.setFont(QFont('Arial', 12))
+        label.resize(250,32)
+        label.move(position[0],position[1])
+        return label
+
+    def updatalabel(self,time,best,threshold,entropy,my,car_insys,car_incall):
+
+        self.time.setText       ("Time\t\t: " + str(time) + "   (s)")
+        
+        self.best.setText       ("Best Effect\t: " + str(best))
+        
+        self.threshold.setText  ("Threshold\t: " + str(threshold))
+ 
+        self.entropy.setText    ("Entropy\t\t: " + str(entropy))
+        
+        self.my.setText         ("My design\t: " + str(my))
+
+        self.car_insys.setText  ("Cars in system\t: " + str(car_insys))
+
+        self.car_incall.setText ("Cars in call\t: " + str(car_incall))
+
+    def setUI(self):
+        
+        self.app = QApplication(sys.argv)
+    
+        self.widget = QWidget()
+
+        
+        self.time = self.label("Time\t\t: 0" + "   (s)" ,(32,32))
+        self.best = self.label("Best Effect\t: 0"  ,(32,64))
+        self.threshold = self.label("Threshold\t: 0"   ,(32,96))
+        self.entropy = self.label("Entropy\t\t: 0"    ,(32,128))
+        self.my =   self.label("My design\t: 0"    ,(32,160))
+        self.car_insys =   self.label("Cars in system\t: 0"    ,(32,192))
+        self.car_incall =   self.label("Cars in call\t: 0"    ,(32,224))
+
+        self.widget.setGeometry(50,50,50+250,50+250)
+        self.widget.setWindowTitle("2021 Opencvdl Hw1")
+        self.widget.show()
+
 class car:
     def __init__(self,position,dir,hv):
         self.point = position
         self.direct = dir
         self.hv = hv
+        self.incall = 0
+        self.calltime = 0
     def update_position(self):
         self.point[0] = self.point[0] + self.direct[0]
         self.point[1] = self.point[1] + self.direct[1]
@@ -15,6 +70,7 @@ class car:
 class base:
     def __init__(self,position,block_size,freq):
         self.point = position
+        self.pt = 120
         self.signal_map = self.makesignalmap(block_size,freq)
     def get_signal(self,position):
         return self.signal_map[position[0]][position[1]]
@@ -24,9 +80,9 @@ class base:
         for i in range(10,img_size[0]-10):
             for j in range(10,img_size[1]-10):
                 if (i-10) % block_size == 0:
-                    signal_map[i][j] = 32.45 + 20*math.log10(freq) + 20*math.log10(self.distance((i,j))/100)
+                    signal_map[i][j] = self.pt - (32.45 + 20*math.log10(freq) + 20*math.log10(self.distance((i,j))/100))
                 if (j-10) % block_size == 0:
-                    signal_map[i][j] = 32.45 + 20*math.log10(freq) + 20*math.log10(self.distance((i,j))/100)
+                    signal_map[i][j] = self.pt - (32.45 + 20*math.log10(freq) + 20*math.log10(self.distance((i,j))/100))
         return signal_map
     def distance(self,position):
         return ((self.point[0] - position[0])**2 + (self.point[1] - position[1])**2)**0.5
@@ -46,7 +102,7 @@ class map:
         self.cars = []
         self.block_size = 100
         self.img = 0
-
+        self.counter = 0
     def point_show(self,point,size,color):
         for i in range(size//2):
             for j in range(size//2):
@@ -117,9 +173,20 @@ class map:
         with open("a.pickle" , "rb") as f:
             self.img = pickle.load(f)
 
+        self.counter = 0
+
         for index,i in enumerate(self.cars):
 
             self.point_show(i.point,self.car_size,self.car_color)
+            
+            if(i.incall):
+                self.counter += 1
+                i.calltime -= i.calltime
+                if not i.calltime:
+                    i.incall = 0
+            else:
+                i.incall = 1
+                i.calltime = 10
             
             i.update_position()
             
@@ -164,18 +231,19 @@ class map:
                     if ((j-10) % (self.block_size/2) == 0) and ((j-10) % self.block_size != 0):
                         if np.random.randint(0,int(1/self.base_add_rate)) == 0:
                             pos = np.random.randint(0,4)
+                            f = np.random.randint(1,11)
                             if pos == 0:
                                 self.point_show((i+10,j),self.base_size,self.base_color)
-                                self.bases.append(base((i+10,j),self.block_size,100))
+                                self.bases.append(base((i+10,j),self.block_size,f*100))
                             elif pos == 1:
                                 self.point_show((i-10,j),self.base_size,self.base_color)
-                                self.bases.append(base((i-10,j),self.block_size,100))
+                                self.bases.append(base((i-10,j),self.block_size,f*100))
                             elif pos == 2:
                                 self.point_show((i,j+10),self.base_size,self.base_color)
-                                self.bases.append(base((i,j+10),self.block_size,100))
+                                self.bases.append(base((i,j+10),self.block_size,f*100))
                             else:
                                 self.point_show((i,j-10),self.base_size,self.base_color)
-                                self.bases.append(base((i,j-10),self.block_size,100))
+                                self.bases.append(base((i,j-10),self.block_size,f*100))
 
     def makemap(self):
         img_size = (self.block_size*9+21,self.block_size*9+21,3)
@@ -192,14 +260,18 @@ class map:
             pickle.dump(self.img,f)
 
 def main():
+    ui = UI()
     img = map()
     img.makemap()
     cv2.namedWindow("img")
+    counter = 0
     while 1:
         img.update()
         cv2.imshow("img",img.img)
+        ui.updatalabel(counter,counter,counter,counter,counter,len(img.cars),img.counter)
         time.sleep(0.005)
         dead = cv2.waitKey(1)
+        counter += 1
         if dead != -1:
             break
     print(img.bases[0].get_signal((10,10)))
@@ -208,3 +280,5 @@ def main():
     print(img.bases[0].point)
 if __name__ == "__main__":
     main()
+
+
