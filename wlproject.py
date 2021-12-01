@@ -58,14 +58,38 @@ class UI:
 
 class car:
     def __init__(self,position,dir,hv):
+        self.callmu = 3*60
+        self.waitmu = 27*60
+        self.callsigma = 1*60
+        self.waitsigma = 2*60
         self.point = position
         self.direct = dir
         self.hv = hv
         self.incall = 0
-        self.calltime = 0
+        self.call = 0
+        self.waitforcall = 0
+        self.waittime()
     def update_position(self):
         self.point[0] = self.point[0] + self.direct[0]
         self.point[1] = self.point[1] + self.direct[1]
+    def waittime(self):
+        self.waitforcall = int(np.random.normal(self.waitmu,self.waitsigma))
+    def calltime(self):
+        self.call = int(np.random.normal(self.callmu,self.callsigma))
+    def check(self):
+        if self.waitforcall == 0:
+            self.calltime()
+            self.incall = 1
+        else:
+            self.waitforcall -= 1
+
+        if self.incall == 1:
+            if self.call == 0:
+                self.incall = 0
+                self.waittime()
+            else:
+                self.call -= 1
+
 
 class base:
     def __init__(self,position,block_size,freq):
@@ -100,13 +124,16 @@ class map:
         self.car_color = [255,200,0] 
         self.bases = []
         self.cars = []
-        self.block_size = 100
+        self.block_size = 250
         self.img = 0
         self.counter = 0
         self.best = 0
         self.threshold = 0
         self.entropy = 0
         self.my = 0
+
+        self.makemap()
+
     def point_show(self,point,size,color):
         for i in range(size//2):
             for j in range(size//2):
@@ -119,55 +146,55 @@ class map:
         dir = np.random.randint(0,32)    
         if i.hv == 0:
             if dir <= 15:   #straight
-                i.direct = [0,10]
+                i.direct = [0,1]
                 i.hv = 0
             elif 16 <= dir <= 17:   #back
-                i.direct = [0,-10]
+                i.direct = [0,-1]
                 i.hv = 1
             elif 18 <= dir <= 24:   #right
-                i.direct = [10,0]
+                i.direct = [1,0]
                 i.hv = 2
             else:   #left
-                i.direct = [-10,0]
+                i.direct = [-1,0]
                 i.hv = 3
         elif i.hv == 1:
             if dir <= 15:   #straight
-                i.direct = [0,-10]
+                i.direct = [0,-1]
                 i.hv = 1
             elif 16 <= dir <= 17:   #back
-                i.direct = [0,10]
+                i.direct = [0,1]
                 i.hv = 0
             elif 18 <= dir <= 24:   #right
-                i.direct = [-10,0]
+                i.direct = [-1,0]
                 i.hv = 3
             else:   #left
-                i.direct = [10,0]
+                i.direct = [1,0]
                 i.hv = 2            
         elif i.hv == 2:
             if dir <= 15:   #straight
-                i.direct = [10,0]
+                i.direct = [1,0]
                 i.hv = 2
             elif 16 <= dir <= 17:   #back
-                i.direct = [-10,0]
+                i.direct = [-1,0]
                 i.hv = 3
             elif 18 <= dir <= 24:   #right
-                i.direct = [0,-10]
+                i.direct = [0,-1]
                 i.hv = 1
             else:   #left
-                i.direct = [0,10]
+                i.direct = [0,1]
                 i.hv = 0
         else:
             if dir <= 15:   #straight
-                i.direct = [-10,0]
+                i.direct = [-1,0]
                 i.hv = 3
             elif 16 <= dir <= 17:   #back
-                i.direct = [10,0]
+                i.direct = [1,0]
                 i.hv = 2
             elif 18 <= dir <= 24:   #right
-                i.direct = [0,10]
+                i.direct = [0,1]
                 i.hv = 0
             else:   #left
-                i.direct = [0,-10]
+                i.direct = [0,-1]
                 i.hv = 1    
 
     def update(self):
@@ -183,14 +210,10 @@ class map:
 
             self.point_show(i.point,self.car_size,self.car_color)
             
+            i.check()
+
             if(i.incall):
                 self.counter += 1
-                i.calltime -= i.calltime
-                if not i.calltime:
-                    i.incall = 0
-            else:
-                i.incall = 1
-                i.calltime = 10
             
             i.update_position()
             
@@ -208,16 +231,16 @@ class map:
             hv = 0
             dir = np.random.randint(0,4)
             if dir == 0:
-                direct = [0,10]
+                direct = [0,1]
                 hv = 0
             elif dir == 1:
-                direct = [0,-10]
+                direct = [0,-1]
                 hv = 1
             elif dir == 2:
-                direct = [10,0]
+                direct = [1,0]
                 hv = 2
             else:
-                direct = [-10,0]
+                direct = [-1,0]
                 hv = 3
             if (i == 0) or (i == 9):
                 j = np.random.randint(0,10)
@@ -266,14 +289,13 @@ class map:
 def main():
     ui = UI()
     img = map()
-    img.makemap()
     cv2.namedWindow("img")
     counter = 0
     while 1:
         img.update()
         cv2.imshow("img",img.img)
         ui.updatalabel(counter,img.best,img.threshold,img.entropy,img.my,len(img.cars),img.counter)
-        time.sleep(0.005)
+        time.sleep(0.001)
         dead = cv2.waitKey(1)
         counter += 1
         if dead != -1:
