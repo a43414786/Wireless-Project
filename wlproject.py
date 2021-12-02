@@ -57,9 +57,9 @@ class UI:
         self.widget.show()
 
 class car:
-    def __init__(self,position,dir,hv):
+    def __init__(self,position,dir,hv,signalmap):
         self.callmu = 3*60
-        self.waitmu = 27*60
+        self.waitmu = 6*60
         self.callsigma = 1*60
         self.waitsigma = 2*60
         self.point = position
@@ -68,6 +68,18 @@ class car:
         self.incall = 0
         self.call = 0
         self.waitforcall = 0
+        self.signalmap = signalmap
+        self.thresholdlim = 20
+        self.gap = 25
+
+        self.best = 0
+        self.threshold = 0
+        self.entropy = 0
+        self.my = 0
+        self.mymin = 15
+        self.mymax = 25
+    
+
         self.waittime()
     def update_position(self):
         self.point[0] = self.point[0] + self.direct[0]
@@ -80,6 +92,13 @@ class car:
         if self.waitforcall == 0:
             self.calltime()
             self.incall = 1
+            maxidx = np.argmax(self.signalmap[self.point[0]][self.point[1]])
+            self.best = maxidx
+            self.threshold = maxidx
+            self.entropy = maxidx
+            self.my = maxidx
+            self.waitforcall -= 1
+            
         else:
             self.waitforcall -= 1
 
@@ -87,14 +106,64 @@ class car:
             if self.call == 0:
                 self.incall = 0
                 self.waittime()
+                return 0,0,0,0
             else:
                 self.call -= 1
+                a = self.checkbest()
+                b = self.checkthreshold()
+                c = self.checkentropy()
+                d = self.checkmy()
+                return a,b,c,d
+        else:
+            return 0,0,0,0
+    def checkbest(self):
+        maxidx = np.argmax(self.signalmap[self.point[0]][self.point[1]])
+        if maxidx != self.best:
+            self.best = maxidx
+            return 1
+        else:
+            return 0
+    def checkthreshold(self):
+        sig = self.signalmap[self.point[0]][self.point[1]][self.threshold]
+        if sig < self.thresholdlim:
+            maxsig = max(self.signalmap[self.point[0]][self.point[1]])
+            if maxsig >= self.thresholdlim:
+                maxidx = np.argmax(self.signalmap[self.point[0]][self.point[1]])
+                self.threshold = maxidx
+                return 1
+    
+        return 0
+    def checkentropy(self):
+        sig = self.signalmap[self.point[0]][self.point[1]][self.entropy]
+        maxsig = max(self.signalmap[self.point[0]][self.point[1]])
+        if abs(maxsig - sig) > self.gap:
+            maxidx = np.argmax(self.signalmap[self.point[0]][self.point[1]])
+            self.entropy = maxidx
+            return 1
+        else:
+            return 0
 
+    def checkmy(self):
+        sig = self.signalmap[self.point[0]][self.point[1]][self.my]
+        if sig < self.mymin:
+            maxsig = max(self.signalmap[self.point[0]][self.point[1]])
+            if maxsig >= self.mymin:
+                maxidx = np.argmax(self.signalmap[self.point[0]][self.point[1]])
+                self.my = maxidx
+                return 1
+        elif sig < self.mymax:
+            change = np.random.randint(0,10)
+            if change == 0:
+                maxidx = np.argmax(self.signalmap[self.point[0]][self.point[1]])
+                if maxidx != self.my:
+                    self.my = maxidx
+                    return 1
+        return 0
 
 class base:
     def __init__(self,position,block_size,freq):
         self.point = position
-        self.pt = 120
+        self.pt = 100
         self.signal_map = self.makesignalmap(block_size,freq)
     def get_signal(self,position):
         return self.signal_map[position[0]][position[1]]
@@ -116,17 +185,18 @@ class base:
 class map:
     def __init__(self):
         self.time = time.time()
-        self.base_size = 9
-        self.car_size = 7
-        self.car_add_rate = 10
-        self.base_add_rate = 0.12
+        self.base_size = 15
+        self.car_size = 11
+        self.car_add_rate = 5       #per min
+        self.base_add_rate = 0.1
         self.base_color = [255,0,200] 
         self.car_color = [255,200,0] 
-        self.bases = []
+        self.signalmap = 0
         self.cars = []
         self.block_size = 250
         self.img = 0
         self.counter = 0
+
         self.best = 0
         self.threshold = 0
         self.entropy = 0
@@ -201,7 +271,7 @@ class map:
 
         self.addcar()
 
-        with open("a.pickle" , "rb") as f:
+        with open("map.pickle" , "rb") as f:
             self.img = pickle.load(f)
 
         self.counter = 0
@@ -210,8 +280,11 @@ class map:
 
             self.point_show(i.point,self.car_size,self.car_color)
             
-            i.check()
-
+            a,b,c,d = i.check()
+            self.best += a
+            self.threshold += b
+            self.entropy += c
+            self.my += d
             if(i.incall):
                 self.counter += 1
             
@@ -225,7 +298,7 @@ class map:
                 self.change_dir(i)
                 
     def addcar(self):
-        if  np.random.randint(0,int(60/self.car_add_rate)) == 0:
+        if  np.random.poisson(self.car_add_rate/60) == 1:
             i = np.random.randint(0,10)
             direct = [0,0]
             hv = 0
@@ -244,14 +317,15 @@ class map:
                 hv = 3
             if (i == 0) or (i == 9):
                 j = np.random.randint(0,10)
-                self.cars.append(car([i*self.block_size + 10,j*self.block_size + 10],direct,hv))
+                self.cars.append(car([i*self.block_size + 10,j*self.block_size + 10],direct,hv,self.signalmap))
             else:
                 j = np.random.randint(0,2)
                 if j == 1:
                     j=9
-                self.cars.append(car([i*self.block_size + 10,j*self.block_size + 10],direct,hv))
+                self.cars.append(car([i*self.block_size + 10,j*self.block_size + 10],direct,hv,self.signalmap))
         
     def create_base(self,img_size):
+        bases = []
         for i in range(10,img_size[0]-10):
             for j in range(10,img_size[1]-10):
                 if ((i-10) % (self.block_size/2) == 0) and ((i-10) % self.block_size != 0):
@@ -261,16 +335,17 @@ class map:
                             f = np.random.randint(1,11)
                             if pos == 0:
                                 self.point_show((i+10,j),self.base_size,self.base_color)
-                                self.bases.append(base((i+10,j),self.block_size,f*100))
+                                bases.append(base((i+10,j),self.block_size,f*100))
                             elif pos == 1:
                                 self.point_show((i-10,j),self.base_size,self.base_color)
-                                self.bases.append(base((i-10,j),self.block_size,f*100))
+                                bases.append(base((i-10,j),self.block_size,f*100))
                             elif pos == 2:
                                 self.point_show((i,j+10),self.base_size,self.base_color)
-                                self.bases.append(base((i,j+10),self.block_size,f*100))
+                                bases.append(base((i,j+10),self.block_size,f*100))
                             else:
                                 self.point_show((i,j-10),self.base_size,self.base_color)
-                                self.bases.append(base((i,j-10),self.block_size,f*100))
+                                bases.append(base((i,j-10),self.block_size,f*100))
+        return bases
 
     def makemap(self):
         img_size = (self.block_size*9+21,self.block_size*9+21,3)
@@ -282,13 +357,23 @@ class map:
                 if (j-10) % self.block_size == 0:
                     self.img[i][j] = [255,255,255]
         
-        self.create_base(img_size)
-        with open("a.pickle" , "wb") as f:
+        bases = self.create_base(img_size)
+        
+        self.signalmap = np.zeros((self.block_size*9+21,self.block_size*9+21,len(bases)))
+        for i in range(10,img_size[0]-10):
+            for j in range(10,img_size[1]-10):
+                sig = []
+                for k in bases:
+                    sig.append(k.signal_map[i][j])
+                self.signalmap[i][j] = sig
+        
+        with open("map.pickle" , "wb") as f:
             pickle.dump(self.img,f)
 
 def main():
     ui = UI()
     img = map()
+    print("start")
     cv2.namedWindow("img")
     counter = 0
     while 1:
